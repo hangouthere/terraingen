@@ -8,6 +8,7 @@ using nfg.gfx;
 using UnityEngine;
 
 public enum DisplayMode {
+    None,
     FlatGreyScale,
     FlatRegion,
     MeshRegion
@@ -15,6 +16,8 @@ public enum DisplayMode {
 
 [SelectionBase]
 public class MapGenerator : MonoBehaviour {
+    public const int CHUNK_SIZE = 241;
+
     // Toggle Objects between Simple and Mesh Maps
     [SerializeField] private GameObject simpleMap;
     [SerializeField] private GameObject meshMap;
@@ -26,8 +29,6 @@ public class MapGenerator : MonoBehaviour {
     [SerializeField] private MeshGeneratorSettings meshGenSettings;
 
     public bool autoUpdate;
-
-    const int CHUNK_SIZE = 241;
 
     void OnValidate() {
         // Ensure Noise Settings are valid
@@ -52,6 +53,11 @@ public class MapGenerator : MonoBehaviour {
         AnimationCurve usedCurve = blendRegions ? regionBlendCurve : null;
 
         switch (displayMode) {
+            case DisplayMode.None:
+                simpleMap.SetActive(false);
+                meshMap.SetActive(false);
+                return;
+
             case DisplayMode.FlatRegion:
                 textureGenerator = new RegionTextureGenerator(CHUNK_SIZE, meshGenSettings.regions, usedCurve);
 

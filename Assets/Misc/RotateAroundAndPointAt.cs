@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class RotateAroundAndPointAt : MonoBehaviour {
     [SerializeField] private Transform pointAt; //the target object
-    [Range(0.001f, 100f)]
+    [Range(-100f, 100f)]
     [SerializeField] private float rotateSpeed = 10.0f; //a speed modifier
 
     void Update() {
