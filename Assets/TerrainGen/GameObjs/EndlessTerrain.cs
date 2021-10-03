@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour {
     [Range(10, 1000)]
-    public float VIEW_DISTANCE = 300;
+    public float ViewDistance = 300;
 
     public Transform viewpoint;
 
@@ -19,31 +19,30 @@ public class EndlessTerrain : MonoBehaviour {
         chunkSize = MapGenerator.CHUNK_SIZE - 1;
     }
 
-    void OnValidate() {
-
-    }
-
     void Update() {
-        chunksVisible = Mathf.RoundToInt(VIEW_DISTANCE / chunkSize);
-        viewDistSqr = VIEW_DISTANCE * VIEW_DISTANCE;
+        chunksVisible = Mathf.RoundToInt(ViewDistance / chunkSize);
+        viewDistSqr = ViewDistance * ViewDistance;
 
         ManageChunks();
     }
 
+#if UNITY_EDITOR
     void OnDrawGizmos() {
         UnityEditor.Handles.color = Color.red;
-        UnityEditor.Handles.DrawWireDisc(viewpoint.position, Vector3.up, VIEW_DISTANCE);
+        UnityEditor.Handles.DrawWireDisc(viewpoint.position, Vector3.up, ViewDistance);
 
         foreach (TerrainChunk chunk in currentChunks) {
             Vector3 boundsPoint = chunk.bounds.ClosestPoint(viewpoint.position);
             Gizmos.color = Color.green;
-            // Gizmos.DrawLine(viewpoint.position, chunk.mesh.transform.position);
-            // Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(viewpoint.position, chunk.mesh.transform.position);
+
+            Gizmos.color = Color.magenta;
             Gizmos.DrawLine(viewpoint.position, boundsPoint);
 
             chunk.OnDrawGizmos();
         }
     }
+#endif
 
     void ManageChunks() {
         Vector2 viewerCoord = new Vector2(
