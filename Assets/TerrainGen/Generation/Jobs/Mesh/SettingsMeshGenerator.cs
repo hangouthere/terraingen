@@ -7,16 +7,6 @@ public struct SettingsMeshGenerator {
     public float heightMultiplier;
     [Range(0, 6)] // Simple representation of LOD 0-6;
     public int LevelOfDetail;
-
-    public SettingsMeshGenerator(
-        int chunkSize = 241,
-        float heightMultiplier = 10.0f,
-        int levelOfDetail = 0
-    ) {
-        ChunkSize = chunkSize;
-        this.heightMultiplier = heightMultiplier;
-        LevelOfDetail = levelOfDetail;
-    }
 }
 
 [System.Serializable]

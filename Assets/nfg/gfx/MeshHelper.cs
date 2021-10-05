@@ -3,12 +3,12 @@ using UnityEngine;
 namespace nfg.gfx {
 
     public static class MeshHelper {
-        public static Mesh CreateMesh(Vector3[] vertices, int[] triangles, Vector2[] uvs) {
+        public static Mesh CreateMesh(MeshData meshData) {
             Mesh mesh = new Mesh();
 
-            mesh.vertices = vertices;
-            mesh.triangles = triangles;
-            mesh.uv = uvs;
+            mesh.vertices = meshData.n_vecMesh.ToArray();
+            mesh.triangles = meshData.n_triangles.ToArray();
+            mesh.uv = meshData.n_uvs.ToArray();
 
             mesh.RecalculateNormals();
 

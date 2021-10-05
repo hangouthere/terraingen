@@ -25,10 +25,53 @@ public enum DisplayMode {
     MeshRegion
 }
 
+public struct MapData : IDisposable {
+    public NativeArray<Vector2> n_vecColors;
+    public NativeArray<float> n_heightMap;
+    public NativeArray<Color> n_colorMap;
+
+    public bool IsCreated { get => n_vecColors.IsCreated; }
+
+    public MapData(int chunkSize) : this() {
+        n_vecColors = new NativeArray<Vector2>(chunkSize * chunkSize, Allocator.Persistent);
+        n_heightMap = new NativeArray<float>(chunkSize * chunkSize, Allocator.Persistent);
+        n_colorMap = new NativeArray<Color>(chunkSize * chunkSize, Allocator.Persistent);
+    }
+
+    public void Dispose() {
+        if (!IsCreated) return;
+
+        n_vecColors.Dispose();
+        n_heightMap.Dispose();
+        n_colorMap.Dispose();
+    }
+}
+
+public struct MeshData : IDisposable {
+    public NativeArray<Vector3> n_vecMesh;
+    public NativeArray<int> n_triangles;
+    public NativeArray<Vector2> n_uvs;
+
+    public bool IsCreated { get => n_vecMesh.IsCreated; }
+
+    public MeshData(int meshVerticesWidthSize) : this() {
+        n_vecMesh = new NativeArray<Vector3>(meshVerticesWidthSize * meshVerticesWidthSize, Allocator.Persistent);
+        n_uvs = new NativeArray<Vector2>(meshVerticesWidthSize * meshVerticesWidthSize, Allocator.Persistent);
+        n_triangles = new NativeArray<int>((meshVerticesWidthSize - 1) * (meshVerticesWidthSize - 1) * 6, Allocator.Persistent);
+    }
+
+    public void Dispose() {
+        if (!IsCreated) return;
+
+        n_vecMesh.Dispose();
+        n_triangles.Dispose();
+        n_uvs.Dispose();
+    }
+}
+
 [ExecuteInEditMode]
 [SelectionBase]
 public class MapGenerator : MonoBehaviour {
-    private bool debug = true;
 
     public const int CHUNK_SIZE = 241;
 
@@ -62,6 +105,7 @@ public class MapGenerator : MonoBehaviour {
     [Space]
 
     public bool autoUpdate;
+    public bool debugMessaging;
 
     #endregion
 
@@ -73,31 +117,21 @@ public class MapGenerator : MonoBehaviour {
     private RegionEntryList lastRegionList;
     private int meshLODSkipVertSize;
     private int meshVerticesWidthSize;
+    private double startTime;
+    private int startFrame;
     private bool IsRunning { get => JobHandleStatus.AwaitingCompletion != runningJob.Status; }
     private Action pendingAction;
-    #endregion
-
-    #region -- Native Containers
-    private NativeArray<Vector2> n_octaveOffsets;
-    private NativeArray<float> n_noiseMap;
-    private NativeArray<Color> n_colorMap;
-    private NativeCurve n_regionBlendCurve;
-    private NativeCurve n_heightCurve;
-    private NativeArray<RegionEntryData> n_regions;
-    private NativeArray<Vector3> n_vertices;
-    private NativeArray<int> n_triangles;
-    private NativeArray<Vector2> n_uvs;
     #endregion
 
     #region -- MonoBehavior Lifecycle
 
     void OnEnable() {
-        if (debug) Debug.Log("Started MapGen");
+        if (debugMessaging) Debug.Log("Started MapGen");
+
+        if (IsRunning) OnDisable();
 
         meshRenderer = meshMap.GetComponent<Renderer>();
         meshFilter = meshMap.GetComponent<MeshFilter>();
-
-        UpdateRegions();
 
         GenerateMapFromEditor();
     }
@@ -116,15 +150,39 @@ public class MapGenerator : MonoBehaviour {
 
     #endregion
 
+    #region -- Native Containers
+    private NativeArray<Vector2> n_vecOctaveOffsets;
+    private NativeArray<RegionEntryData> n_regions;
+    private NativeCurve n_regionBlendCurve;
+    private NativeCurve n_heightCurve;
+
+    private MapData mapData;
+    private MeshData meshData;
+
+    #endregion
+
     #region -- Job Queue
 
-    private void SetupNativeContainers() {
-        if (n_octaveOffsets.IsCreated) {
-            return;
-        }
-
+    private void UpdateRegions() {
         if (regionList != lastRegionList) {
-            UpdateRegions();
+            lastRegionList = regionList;
+
+            if (n_regions.IsCreated) {
+                n_regions.Dispose();
+            }
+
+            n_regions = new NativeArray<RegionEntryData>(regionList.regions.Length, Allocator.Persistent);
+
+            // Extract RegionEntryData
+            for (int regionIdx = 0; regionIdx < n_regions.Length; regionIdx++) {
+                n_regions[regionIdx] = regionList.regions[regionIdx].entryData;
+            }
+        }
+    }
+
+    private void SetupNativeContainers() {
+        if (n_vecOctaveOffsets.IsCreated) {
+            return;
         }
 
         // LOD is simplified 0-6, where 0 is turned into a scale factor of 1
@@ -133,104 +191,106 @@ public class MapGenerator : MonoBehaviour {
         // Num Vertices for the current LOD can be calculated as : ((width - 1) / LODIncrement) + 1
         meshVerticesWidthSize = ((CHUNK_SIZE - 1) / meshLODSkipVertSize) + 1;
 
+        mapData = new MapData(CHUNK_SIZE);
+        meshData = new MeshData(meshVerticesWidthSize);
+
+        UpdateRegions();
+
+        // Offload OctaveOffset generation
+        n_vecOctaveOffsets = new NativeArray<Vector2>(settingsNoise.NumOctaves, Allocator.Persistent);
+
         // Init NativeContainers
-        n_noiseMap = new NativeArray<float>(CHUNK_SIZE * CHUNK_SIZE, Allocator.Persistent);
-        n_colorMap = new NativeArray<Color>(CHUNK_SIZE * CHUNK_SIZE, Allocator.Persistent);
         n_regionBlendCurve = new NativeCurve();
         n_heightCurve = new NativeCurve();
 
-        n_vertices = new NativeArray<Vector3>(meshVerticesWidthSize * meshVerticesWidthSize, Allocator.Persistent);
-        n_uvs = new NativeArray<Vector2>(meshVerticesWidthSize * meshVerticesWidthSize, Allocator.Persistent);
-        n_triangles = new NativeArray<int>((meshVerticesWidthSize - 1) * (meshVerticesWidthSize - 1) * 6, Allocator.Persistent);
 
         // Build Curve prefetch data
         n_regionBlendCurve.Update(regionBlendCurve, 256);
         n_heightCurve.Update(heightCurve, 256);
-
-        // Offload OctaveOffset generation
-        n_octaveOffsets = CoherentNoiseHelper.GenerateOctaveOffsets(settingsNoise.NumOctaves, settingsNoise.Seed, settingsNoise.Offset);
-    }
-
-    private void UpdateRegions() {
-        if (n_regions.IsCreated) {
-            n_regions.Dispose();
-        }
-
-        // Build Regions
-        n_regions = new NativeArray<RegionEntryData>(regionList.regions.Length, Allocator.Persistent);
-        for (int regionIdx = 0; regionIdx < regionList.regions.Length; regionIdx++) {
-            n_regions[regionIdx] = regionList.regions[regionIdx].entryData;
-        }
-
-        lastRegionList = regionList;
     }
 
     private void DisposeNativeContainers() {
-        if (!n_noiseMap.IsCreated) {
+        if (!mapData.IsCreated) {
             return;
         }
 
-        n_noiseMap.Dispose();
-        n_colorMap.Dispose();
+        mapData.Dispose();
+        meshData.Dispose();
+
         n_regionBlendCurve.Dispose();
         n_heightCurve.Dispose();
-        n_octaveOffsets.Dispose();
-        n_vertices.Dispose();
-        n_triangles.Dispose();
-        n_uvs.Dispose();
-
-        runningJob = new JobHandle();
-    }
-
-    public void GenerateMapFromEditor() {
-        if (debug) Debug.Log("Kicking Off New Generate");
-
-        ToggleMapDisplays();
-
-        pendingAction = drawEditorEntities;
-
-        startJobQueue();
+        n_vecOctaveOffsets.Dispose();
     }
 
     private void startJobQueue() {
+        int PARALLEL_COUNT = 10;
+
+        startTime = Time.fixedUnscaledTimeAsDouble;
+        startFrame = Time.frameCount;
+
         SetupNativeContainers();
 
-        // Start new noiseJob
-        JobHandle noiseJob = new CreateCoherentNoiseJob() {
-            settingsNoise = settingsNoise,
-            n_octaveOffsets = n_octaveOffsets,
-            n_noiseMap = n_noiseMap
+        // Generate Vectors
+        JobHandle genColorVecsJobs = new JobCreateColorVectors() {
+            chunkSize = CHUNK_SIZE,
+            n_vertices = mapData.n_vecColors
         }.Schedule(runningJob.handle); // only after the previous runningJob
 
+        JobHandle genMeshVectors = new JobCreateMeshVectors() {
+            chunkSize = meshVerticesWidthSize,
+            n_vertices = meshData.n_vecMesh,
+            meshLODSkipVertSize = meshLODSkipVertSize
+        }.Schedule(runningJob.handle); // only after the previous runningJob
+
+        // Start new octaveGenJob
+        JobHandle octaveGenJob = new JobCreateOctaveOffsets() {
+            seed = settingsNoise.Seed,
+            noiseOffset = settingsNoise.NoiseOffset,
+            n_vecOctaveOffsets = n_vecOctaveOffsets,
+        }.Schedule(runningJob.handle); // only after the previous runningJob
+
+        JobHandle setupJobs = JobHandle.CombineDependencies(genColorVecsJobs, genMeshVectors, octaveGenJob);
+
+        // Start new noiseJob
+        JobHandle noiseJob = new JobCreateCoherentNoise() {
+            settingsNoise = settingsNoise,
+            n_vecOctaveOffsets = n_vecOctaveOffsets,
+            n_noiseMap = mapData.n_heightMap,
+            n_vecColors = mapData.n_vecColors
+        }.ScheduleParallel(mapData.n_heightMap.Length, PARALLEL_COUNT, setupJobs); // only after the previous runningJob
+
+        // Normalize all points
+        JobHandle normalizeNoiseJob = new JobNormalizeNoiseMap() {
+            n_noiseMap = mapData.n_heightMap,
+        }.Schedule(noiseJob); // only after the previous noiseJob
+
         // Perform the Color Job
-        JobHandle colorJob = new CreateColorMapJob() {
-            n_noiseMap = n_noiseMap,
-            n_regions = n_regions,
-            settingsMesh = settingsMesh,
+        JobHandle colorJob = new JobCreateColorMap() {
             displayMode = displayMode,
+            n_colorMap = mapData.n_colorMap,
+            n_noiseMap = mapData.n_heightMap,
             n_regionBlendCurve = n_regionBlendCurve,
-            n_colorMap = n_colorMap
-        }.Schedule(noiseJob); // only after the noiseJob
+            n_regions = n_regions
+        }.ScheduleParallel(mapData.n_colorMap.Length, PARALLEL_COUNT, normalizeNoiseJob); // only after the noiseJob
 
         // Perform the TerrainMesh Job
-        JobHandle meshJob =
-            new CreateTerrainMeshJob() {
-                settings = settingsMesh,
-                meshLODSkipVertSize = meshLODSkipVertSize,
-                meshVerticesWidthSize = meshVerticesWidthSize,
-                n_regions = n_regions,
-                heightMap = n_noiseMap,
-                n_heightCurve = n_heightCurve,
-                n_vertices = n_vertices,
-                n_triangles = n_triangles,
-                n_uvs = n_uvs
-            }.Schedule(colorJob); // only after the colorJob
+        JobHandle meshJob = new JobCreateTerrainMesh() {
+            settingsMesh = settingsMesh,
+            meshLODSkipVertSize = meshLODSkipVertSize,
+            meshVerticesWidthSize = meshVerticesWidthSize,
+            n_regions = n_regions,
+            n_heightMap = mapData.n_heightMap,
+            n_heightCurve = n_heightCurve,
+            meshData = meshData
+        }.Schedule(colorJob); // only after the colorJob
+
+        JobHandle.ScheduleBatchedJobs();
 
         runningJob = meshJob;
     }
 
     public void checkJobQueue() {
-        if (!IsRunning && n_octaveOffsets.IsCreated) {
+        if (!IsRunning) {
             // Complete the Job, so the scheduler can move on
             runningJob.Complete();
 
@@ -238,7 +298,20 @@ public class MapGenerator : MonoBehaviour {
 
             DisposeNativeContainers();
 
-            if (debug) Debug.Log("DONE!");
+            double now = Time.fixedUnscaledTimeAsDouble;
+            int nowFrame = Time.frameCount;
+            double elapsed = now - startTime;
+            double elapsedFrames = nowFrame - startFrame;
+
+            if (debugMessaging) Debug.Log(
+                "Start at: " + startTime.ToString("F6")
+                + "\tNow: " + now.ToString("F6")
+                + "\n\tDONE in " + elapsed.ToString("F4") + "ms"
+                + "\tDONE in " + elapsedFrames + " frames"
+            );
+
+            startTime = now;
+            startFrame = nowFrame;
         }
     }
 
@@ -249,7 +322,7 @@ public class MapGenerator : MonoBehaviour {
     void OnValidate() {
         // Ensure Noise Settings are valid
         settingsNoise.Width = CHUNK_SIZE;
-        settingsNoise.Height = CHUNK_SIZE;
+        settingsNoise.Height = settingsNoise.Width;
         settingsNoise.Lacunarity = Math.Max(settingsNoise.Lacunarity, 0.01f);
         settingsNoise.NumOctaves = Math.Max(settingsNoise.NumOctaves, 0);
         settingsNoise.Seed = Math.Max(settingsNoise.Seed, 1);
@@ -263,6 +336,19 @@ public class MapGenerator : MonoBehaviour {
     private void OnRenderObject() {
         // On Editor Updates
         checkJobQueue();
+    }
+
+    public void GenerateMapFromEditor() {
+        ToggleMapDisplays();
+
+        if (DisplayMode.None == displayMode) {
+            DisposeNativeContainers();
+            return;
+        }
+
+        pendingAction = drawEditorEntities;
+
+        startJobQueue();
     }
 
     private void ToggleMapDisplays() {
@@ -287,14 +373,12 @@ public class MapGenerator : MonoBehaviour {
     }
 
     private void drawEditorEntities() {
-        Debug.Log("Drawing from Editor");
-
         drawEditorTextures();
         drawEditorMesh();
     }
 
     private void drawEditorTextures() {
-        Texture2D texture = TextureHelper.FromColorMap(CHUNK_SIZE, CHUNK_SIZE, n_colorMap.ToArray());
+        Texture2D texture = TextureHelper.FromColorMap(CHUNK_SIZE, CHUNK_SIZE, mapData.n_colorMap.ToArray());
 
         Renderer textureRenderer = simpleMap.GetComponent<Renderer>();
 
@@ -307,11 +391,7 @@ public class MapGenerator : MonoBehaviour {
     }
 
     private void drawEditorMesh() {
-        Mesh terrainMesh = MeshHelper.CreateMesh(
-            n_vertices.ToArray(),
-            n_triangles.ToArray(),
-            n_uvs.ToArray()
-        );
+        Mesh terrainMesh = MeshHelper.CreateMesh(meshData);
 
         // Apply Mesh!
         meshFilter.sharedMesh = terrainMesh;
