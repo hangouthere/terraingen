@@ -2,35 +2,29 @@ using nfg.Utils;
 using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(MapGenerator))]
-public class MapGeneratorEditor : Editor {
-    Debouncer debouncer;
+[CustomEditor(typeof(TerrainChunkSettingsEditor))]
+public class TerrainChunkSettingsEditorEditor : Editor {
+    private Debouncer debouncer;
 
-    override public bool RequiresConstantRepaint() { return debouncer?.IsPending ?? false; }
+    TerrainChunkSettingsEditor settingsEditor { get => (TerrainChunkSettingsEditor)target; }
+
+    override public bool RequiresConstantRepaint() { return settingsEditor.liveUpdate; }
 
     private void OnEnable() {
         debouncer = new Debouncer(0.125f);
     }
 
     public override void OnInspectorGUI() {
-        MapGenerator mapGen = (MapGenerator)target;
-
         serializedObject.Update();
 
-        if (DrawDefaultInspector()) {
-            if (mapGen.autoUpdate) {
-                debouncer.Debounce(mapGen.GenerateMapFromEditor);
-            }
-        }
-
-        if (GUILayout.Button("Generate Threaded")) {
-            mapGen.GenerateMapFromEditor();
-        }
+        DrawDefaultInspector();
 
         if (GUILayout.Button("Generate Now")) {
-            mapGen.GenerateMapFromEditor();
-            mapGen.runningJob.handle.Complete();
-            mapGen.checkJobQueue();
+            settingsEditor.GenerateTestChunk();
+        }
+
+        if (settingsEditor.liveUpdate) {
+            debouncer.Debounce(settingsEditor.GenerateTestChunk);
         }
 
         debouncer.DebounceCheck();
