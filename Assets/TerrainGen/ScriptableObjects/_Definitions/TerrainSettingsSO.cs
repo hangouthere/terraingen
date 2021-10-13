@@ -1,12 +1,17 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "NewTerrainSettings", menuName = "TerrainGen/TerrainSettings")]
-public class TerrainSettingsSO : ScriptableObject {
-    public SettingsCoherentNoise NoiseSettings;
-    public SettingsMeshGenerator MeshSettings;
+namespace nfg.Unity.TerrainGen {
 
-    //FIXME: Test if this can go in NoiseSettings.... this is annoying to have them split
-    public RegionEntry[] regions;
-    public AnimationCurve regionBlendCurve;
-    public AnimationCurve heightCurve;
+    [CreateAssetMenu(fileName = "NewTerrainSettings", menuName = "TerrainGen/TerrainSettings")]
+    public class TerrainSettingsSO : ScriptableObject {
+        public SettingsCoherentNoise NoiseSettings;
+        public SettingsMeshGenerator MeshSettings;
+
+        // These must remain in the Main Thread, as we need to convert 
+        // these to Native formats before submitting to Jobs
+        public RegionEntry[] regions;
+        public AnimationCurve regionBlendCurve;
+        public AnimationCurve heightCurve;
+    }
+
 }

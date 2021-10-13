@@ -15,12 +15,12 @@ MonoBehaviour:
   NoiseSettings:
     Width: 241
     Height: 241
-    Scale: 121
+    Scale: 130
     NumOctaves: 15
     Lacunarity: 1.6
     Persistence: 0.6
     Seed: 10
-    NoiseOffset: {x: 19.78, y: 0}
+    NoiseOffset: {x: 0, y: 0}
     PositionOffset: {x: 0, y: 0}
     NormalSpace: 0
   MeshSettings:
@@ -81,8 +81,8 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 1.1561074
     - serializedVersion: 3
-      time: 0.095213205
-      value: 0.19504195
+      time: 0.33450243
+      value: 0.30070716
       inSlope: -1.3801829
       outSlope: -1.2404816
       tangentMode: 1
@@ -90,8 +90,8 @@ MonoBehaviour:
       inWeight: 0.60236675
       outWeight: 0.25971442
     - serializedVersion: 3
-      time: 0.5582849
-      value: 0.58996624
+      time: 0.7975741
+      value: 0.69563144
       inSlope: -0.2646965
       outSlope: -0.7986385
       tangentMode: 1

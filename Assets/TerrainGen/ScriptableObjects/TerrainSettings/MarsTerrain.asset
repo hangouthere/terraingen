@@ -15,7 +15,7 @@ MonoBehaviour:
   NoiseSettings:
     Width: 241
     Height: 241
-    Scale: 121
+    Scale: 130
     NumOctaves: 15
     Lacunarity: 1.6
     Persistence: 0.6

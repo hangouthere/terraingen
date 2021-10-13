@@ -1,66 +1,70 @@
-using nfg.Jobs;
+using nfg.Unity.Jobs;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 
-[BurstCompile]
-public struct JobCreateTerrainMesh : IJob {
-    [ReadOnly]
-    public SettingsMeshGenerator settingsMesh;
-    [ReadOnly]
-    public NativeArray<float> n_heightMap;
-    [ReadOnly]
-    public NativeCurve n_heightCurve;
-    [ReadOnly]
-    public int lodVerticeIncrement;
-    [ReadOnly]
-    public int lodVerticesSize;
+namespace nfg.Unity.TerrainGen {
 
-    public NativeArray<Vector3> n_vecMesh;
-    public NativeArray<int> n_triangles;
-    public NativeArray<Vector2> n_uvs;
+    [BurstCompile]
+    public struct JobCreateTerrainMesh : IJob {
+        [ReadOnly]
+        public SettingsMeshGenerator settingsMesh;
+        [ReadOnly]
+        public NativeArray<float> n_heightMap;
+        [ReadOnly]
+        public NativeCurve n_heightCurve;
+        [ReadOnly]
+        public int lodVerticeIncrement;
+        [ReadOnly]
+        public int lodVerticesSize;
 
-    private int triangleIndex;
+        public NativeArray<Vector3> n_vecMesh;
+        public NativeArray<int> n_triangles;
+        public NativeArray<Vector2> n_uvs;
 
-    public void Execute() {
-        triangleIndex = 0;
-        int vertexIndex = 0;
-        float chunkCenterOffset = (settingsMesh.ChunkSize - 1) / -2f;
+        private int triangleIndex;
 
-        for (int z = 0; z < settingsMesh.ChunkSize; z += lodVerticeIncrement) {
-            for (int x = 0; x < settingsMesh.ChunkSize; x += lodVerticeIncrement) {
+        public void Execute() {
+            triangleIndex = 0;
+            int vertexIndex = 0;
+            float chunkCenterOffset = (settingsMesh.ChunkSize - 1) / -2f;
 
-                // Get Height Val, apply the HeightCurve expression, and scale by HeightMultiplier
-                float heightVal = n_heightMap[x + z * settingsMesh.ChunkSize];
-                float curvedVal = n_heightCurve.Evaluate(heightVal);
-                heightVal *= curvedVal * settingsMesh.heightMultiplier;
+            for (int z = 0; z < settingsMesh.ChunkSize; z += lodVerticeIncrement) {
+                for (int x = 0; x < settingsMesh.ChunkSize; x += lodVerticeIncrement) {
 
-                // Build current Vertex with newlycal'd heightVal, but offset so the terrain is built from the center
-                n_vecMesh[vertexIndex] = new Vector3(chunkCenterOffset + x, heightVal, -chunkCenterOffset - z);
-                n_uvs[vertexIndex] = new Vector2(x / (float)settingsMesh.ChunkSize, z / (float)settingsMesh.ChunkSize);
+                    // Get Height Val, apply the HeightCurve expression, and scale by HeightMultiplier
+                    float heightVal = n_heightMap[x + z * settingsMesh.ChunkSize];
+                    float curvedVal = n_heightCurve.Evaluate(heightVal);
+                    heightVal *= curvedVal * settingsMesh.heightMultiplier;
 
-                if (x < settingsMesh.ChunkSize - 1 && z < settingsMesh.ChunkSize - 1) {
-                    AddQuadFromVertexIndex(vertexIndex);
+                    // Build current Vertex with newlycal'd heightVal, but offset so the terrain is built from the center
+                    n_vecMesh[vertexIndex] = new Vector3(chunkCenterOffset + x, heightVal, -chunkCenterOffset - z);
+                    n_uvs[vertexIndex] = new Vector2(x / (float)settingsMesh.ChunkSize, z / (float)settingsMesh.ChunkSize);
+
+                    if (x < settingsMesh.ChunkSize - 1 && z < settingsMesh.ChunkSize - 1) {
+                        AddQuadFromVertexIndex(vertexIndex);
+                    }
+
+                    vertexIndex++;
                 }
-
-                vertexIndex++;
             }
+        }
+
+        // Adds an entire Quad (aka, 2x Triangles) from the current vertexIndex
+        public void AddQuadFromVertexIndex(int vertexIndex) {
+            AddTriangle(vertexIndex, vertexIndex + lodVerticesSize + 1, vertexIndex + lodVerticesSize);
+            AddTriangle(vertexIndex + lodVerticesSize + 1, vertexIndex, vertexIndex + 1);
+        }
+
+        // Adds a single Triangle from the given a triple of vertexIndices
+        public void AddTriangle(int a, int b, int c) {
+            n_triangles[triangleIndex] = a;
+            n_triangles[triangleIndex + 1] = b;
+            n_triangles[triangleIndex + 2] = c;
+
+            triangleIndex += 3;
         }
     }
 
-    // Adds an entire Quad (aka, 2x Triangles) from the current vertexIndex
-    public void AddQuadFromVertexIndex(int vertexIndex) {
-        AddTriangle(vertexIndex, vertexIndex + lodVerticesSize + 1, vertexIndex + lodVerticesSize);
-        AddTriangle(vertexIndex + lodVerticesSize + 1, vertexIndex, vertexIndex + 1);
-    }
-
-    // Adds a single Triangle from the given a triple of vertexIndices
-    public void AddTriangle(int a, int b, int c) {
-        n_triangles[triangleIndex] = a;
-        n_triangles[triangleIndex + 1] = b;
-        n_triangles[triangleIndex + 2] = c;
-
-        triangleIndex += 3;
-    }
 }
