@@ -15,97 +15,85 @@ MonoBehaviour:
   NoiseSettings:
     Width: 241
     Height: 241
-    Scale: 130
-    NumOctaves: 15
-    Lacunarity: 1.6
-    Persistence: 0.6
+    Scale: 6
+    NumOctaves: 11
+    Lacunarity: 2.16
+    Persistence: 0.277
     Seed: 10
-    NoiseOffset: {x: 0, y: 0}
+    CeilingModifier: 3
+    FloorModifier: 3.59
     PositionOffset: {x: 0, y: 0}
     NormalSpace: 0
   MeshSettings:
     ChunkSize: 241
-    heightMultiplier: 33
+    heightMultiplier: 500
     LevelOfDetail: 0
   regions:
   - label: Deep Water
     entryData:
-      height: 0.3
+      height: 0.1
       color: {r: 0.123398006, g: 0.27024743, b: 0.5566038, a: 1}
+      BlendModifier: 20
   - label: Shallow Water
     entryData:
-      height: 0.41
+      height: 0.13
       color: {r: 0.21568629, g: 0.40000004, b: 0.7803922, a: 1}
+      BlendModifier: 20
   - label: Shore Line
     entryData:
-      height: 0.44
+      height: 0.15
       color: {r: 0.7924528, g: 0.6851726, b: 0.33268064, a: 1}
+      BlendModifier: 12
   - label: Shore Grade
     entryData:
-      height: 0.47
+      height: 0.18
       color: {r: 1, g: 0.8754327, b: 0.495283, a: 1}
+      BlendModifier: 5.69
   - label: Grass Light
     entryData:
-      height: 0.55
+      height: 0.25
       color: {r: 0.33333334, g: 0.5921569, b: 0.08627451, a: 1}
+      BlendModifier: 2.6
   - label: Grass Dark
     entryData:
-      height: 0.6
+      height: 0.3
       color: {r: 0.24705884, g: 0.4156863, b: 0.078431375, a: 1}
+      BlendModifier: 1.8
   - label: Rock Light
     entryData:
-      height: 0.7
+      height: 0.48
       color: {r: 0.34117648, g: 0.24705884, b: 0.22352943, a: 1}
+      BlendModifier: 0.68
   - label: Rock Dark
     entryData:
-      height: 0.88
+      height: 0.75
       color: {r: 0.25882354, g: 0.20784315, b: 0.19607845, a: 1}
+      BlendModifier: 1.5
   - label: Snow
     entryData:
-      height: 0.9
+      height: 1
       color: {r: 0.82745105, g: 0.82745105, b: 0.82745105, a: 1}
-  - label: Snow
-    entryData:
-      height: 1.5
-      color: {r: 0.82745105, g: 0.82745105, b: 0.82745105, a: 1}
+      BlendModifier: 3
   regionBlendCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 0
-      inSlope: -0.0017398382
-      outSlope: -0.0017398382
+      inSlope: 2
+      outSlope: 2
       tangentMode: 0
-      weightedMode: 3
+      weightedMode: 0
       inWeight: 0
-      outWeight: 1.1561074
+      outWeight: 0
     - serializedVersion: 3
-      time: 0.33450243
-      value: 0.30070716
-      inSlope: -1.3801829
-      outSlope: -1.2404816
-      tangentMode: 1
-      weightedMode: 3
-      inWeight: 0.60236675
-      outWeight: 0.25971442
-    - serializedVersion: 3
-      time: 0.7975741
-      value: 0.69563144
-      inSlope: -0.2646965
-      outSlope: -0.7986385
-      tangentMode: 1
-      weightedMode: 3
-      inWeight: 0.40942484
-      outWeight: 0.48267883
-    - serializedVersion: 3
-      time: 0.9894934
-      value: 0.7668277
-      inSlope: 1.9343811
-      outSlope: 1.9343811
+      time: 1
+      value: 1
+      inSlope: 1.228819
+      outSlope: 1.228819
       tangentMode: 0
       weightedMode: 3
-      inWeight: 0.5729304
+      inWeight: 0.33333334
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
@@ -119,26 +107,26 @@ MonoBehaviour:
       inSlope: 0
       outSlope: 0
       tangentMode: 0
-      weightedMode: 2
-      inWeight: 0
-      outWeight: 0.30266154
-    - serializedVersion: 3
-      time: 0.41
-      value: 0
-      inSlope: 0.016147325
-      outSlope: 0.38395017
-      tangentMode: 1
       weightedMode: 0
-      inWeight: 0.42523795
-      outWeight: 0.6337541
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.15
+      value: 0
+      inSlope: 0.002311821
+      outSlope: 2.0753593
+      tangentMode: 1
+      weightedMode: 3
+      inWeight: 0.5096215
+      outWeight: 0.35409456
     - serializedVersion: 3
       time: 1
       value: 1
-      inSlope: 2.4627707
-      outSlope: 2.4627707
+      inSlope: 0.68036836
+      outSlope: 0.68036836
       tangentMode: 0
-      weightedMode: 1
-      inWeight: 0.13100731
+      weightedMode: 3
+      inWeight: 0.6535948
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2

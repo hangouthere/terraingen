@@ -2,6 +2,7 @@
 
 using System;
 using nfg.Unity.Jobs;
+using nfg.Util;
 using Unity.Jobs;
 
 namespace nfg.Unity.TerrainGen {
@@ -11,7 +12,7 @@ namespace nfg.Unity.TerrainGen {
         Local
     }
 
-    public class TerrainChunkBuilder : IDisposable {
+    public class JobQueueTerrainChunkBuilder : IDisposable {
 
         public const int CHUNK_SIZE = 241;
 
@@ -22,26 +23,88 @@ namespace nfg.Unity.TerrainGen {
         private TerrainChunkJobConfig terrainChunkJobConfig;
         private JobHandleExtended jobHandle = default;
 
-        private NativeTerrain n_terrain;
+        private NativeTerrainData n_terrain;
+
+        private NativeFastNoiseLiteContainerHydrator fastNoiseHydrator;
+        private NativeFastNoiseLite fastNoiseGen;
+        private float maximumNoise;
+        private float minimumNoise;
+        private bool _isDisposed;
+
+        #endregion
+
+        #region -- Dispose Pattern
+
+        ~JobQueueTerrainChunkBuilder() => Dispose(false);
+
+        public void Dispose() {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing) {
+            if (_isDisposed) {
+                return;
+            }
+
+            if (disposing) {
+                n_terrain.Dispose();
+                fastNoiseHydrator.Dispose();
+                n_terrain = null;
+                fastNoiseHydrator = null;
+            }
+
+            _isDisposed = true;
+        }
 
         #endregion
 
         #region -- Job Queue
 
-        public TerrainChunkBuilder(TerrainChunkJobConfig terrainChunkConfig) {
+        public JobQueueTerrainChunkBuilder(TerrainChunkJobConfig terrainChunkConfig) {
             this.terrainChunkJobConfig = terrainChunkConfig;
 
             // Forcibly Override Chunk Sizes
-            this.terrainChunkJobConfig.TerrainSettings.NoiseSettings.Width
-                = this.terrainChunkJobConfig.TerrainSettings.NoiseSettings.Height
-                = this.terrainChunkJobConfig.TerrainSettings.MeshSettings.ChunkSize
+            terrainChunkConfig.TerrainSettings.NoiseSettings.Width
+                = terrainChunkConfig.TerrainSettings.NoiseSettings.Height
+                = terrainChunkConfig.TerrainSettings.MeshSettings.ChunkSize
                 = CHUNK_SIZE;
 
+            // Negate Y offset as it translates to the actual Z offset when
+            // translated to 3D mesh, and Unity has Z-positive
+            terrainChunkConfig.TerrainSettings.NoiseSettings.PositionOffset.y *= -1;
+
+            SetupFastNoiseGen();
             GenerateMapData();
         }
 
+        private void SetupFastNoiseGen() {
+            SettingsCoherentNoise noiseSettings = terrainChunkJobConfig.TerrainSettings.NoiseSettings;
+
+            fastNoiseHydrator = new NativeFastNoiseLiteContainerHydrator();
+            fastNoiseGen = new NativeFastNoiseLite(fastNoiseHydrator.Containers);
+
+            fastNoiseGen.SetFractalType(FractalType.FBm);
+            fastNoiseGen.SetNoiseType(NoiseType.Perlin);
+            fastNoiseGen.SetSeed(noiseSettings.Seed);
+            fastNoiseGen.SetFractalOctaves(noiseSettings.NumOctaves);
+            fastNoiseGen.SetFractalLacunarity(noiseSettings.Lacunarity);
+            fastNoiseGen.SetFractalGain(noiseSettings.Persistence);
+
+            maximumNoise = 1f;
+            float amplitude = 1;
+
+            for (int octave = 0; octave < noiseSettings.NumOctaves; octave++) {
+                maximumNoise += amplitude;
+                amplitude *= noiseSettings.Persistence;
+            }
+
+            minimumNoise = -maximumNoise / noiseSettings.FloorModifier;
+            maximumNoise /= noiseSettings.CeilingModifier;
+        }
+
         private void GenerateMapData() {
-            n_terrain = new NativeTerrain(terrainChunkJobConfig.TerrainSettings);
+            n_terrain = new NativeTerrainData(terrainChunkJobConfig.TerrainSettings);
 
             // Generate Color Vectors
             JobHandle genColorVecsJobs = new JobCreateColorVectors() {
@@ -60,18 +123,9 @@ namespace nfg.Unity.TerrainGen {
                 n_vertices = n_terrain.n_meshData.n_vecMesh,
             }.Schedule(jobHandle.handle); // only after the previous runningJob
 
-            // Start new octaveGenJob
-            JobHandle octaveGenJob = new JobCreateOctaveOffsets() {
-                // In
-                settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
-                // Out
-                n_vecOctaveOffsets = n_terrain.n_mapData.n_vecOctaveOffsets,
-            }.Schedule(jobHandle.handle); // only after the previous runningJob
-
             JobHandle setupJobs = JobHandle.CombineDependencies(
                 genColorVecsJobs,
-                genMeshVectors,
-                octaveGenJob
+                genMeshVectors
             );
 
             // Start new noiseJob
@@ -79,7 +133,9 @@ namespace nfg.Unity.TerrainGen {
                 // In
                 settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
                 n_vecColors = n_terrain.n_mapData.n_vecColors,
-                n_vecOctaveOffsets = n_terrain.n_mapData.n_vecOctaveOffsets,
+                fastNoiseGen = fastNoiseGen,
+                minimumNoise = minimumNoise,
+                maximumNoise = maximumNoise,
                 // Out
                 n_heightMap = n_terrain.n_mapData.n_heightMap
             }.ScheduleParallel(
@@ -88,26 +144,21 @@ namespace nfg.Unity.TerrainGen {
                 setupJobs
             ); // only after the previous setupJobs Combo
 
-            // Normalize all points as a height map
-            JobHandle normalizeHeightMapJob = new JobNormalizeHeightMap() {
-                // In
-                settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
-                // Out
-                n_noiseMap = n_terrain.n_mapData.n_heightMap,
-            }.Schedule(noiseJob); // only after the previous colorJob
-
             // Perform the Color Job
             JobHandle colorJob = new JobCreateColorMap() {
                 // In
+                settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
+                n_vecMesh = n_terrain.n_meshData.n_vecMesh,
                 n_heightMap = n_terrain.n_mapData.n_heightMap,
                 n_regionBlendCurve = n_terrain.n_mapData.n_regionBlendCurve,
                 n_regions = n_terrain.n_mapData.n_regions,
+                fastNoiseGen = fastNoiseGen,
                 // Out
                 n_colorMap = n_terrain.n_mapData.n_colorMap
             }.ScheduleParallel(
                 n_terrain.n_mapData.n_colorMap.Length,
                 (int)terrainChunkJobConfig.ParallelLoopBatchCount,
-                normalizeHeightMapJob
+                noiseJob
             ); // only after the noiseJob
 
             // Perform the TerrainMesh Job
@@ -143,12 +194,10 @@ namespace nfg.Unity.TerrainGen {
         }
 
         public TerrainData ToTerrainData() {
-            return new TerrainData(n_terrain);
-        }
-
-        public void Dispose() {
-            n_terrain.Dispose();
-            n_terrain = null;
+            return new TerrainData(
+                CHUNK_SIZE,
+                n_terrain
+            );
         }
 
         #endregion

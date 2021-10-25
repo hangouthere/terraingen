@@ -1,8 +1,8 @@
 // Lots of info https://medium.com/@yvanscher/playing-with-perlin-noise-generating-realistic-archipelagos-b59f004d8401
 
 using nfg.Unity.Jobs;
-using nfg.UnityEngine;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace nfg.Unity.TerrainGen.Demo {
 
@@ -20,108 +20,95 @@ namespace nfg.Unity.TerrainGen.Demo {
         #region -- Editor Options
 
         [Header("Display Options")]
-        [SerializeField] private Material terrainMaterial;
-        [SerializeField] public bool liveUpdate;
-        [SerializeField] private TerrainJobQueueUpdateChannel jobQueue;
+        [SerializeField] private Material TerrainMaterial;
+        [SerializeField] public bool LiveUpdate;
+        [SerializeField] private TerrainJobQueueUpdateChannel JobQueue;
 
         [Header("Advanced Settings")]
-        [SerializeField] private InnerloopBatchCount parallelLoopBatchCount = InnerloopBatchCount.Count_32;
-        [SerializeField] public bool debugMessaging;
+        [SerializeField] private InnerloopBatchCount ParallelLoopBatchCount = InnerloopBatchCount.Count_32;
+        [SerializeField] public bool DebugMessaging;
         [SerializeField, Tooltip("Leave Empty to AutoGenerate a GameObject, or supply your own!")]
-        private GameObject terrainChunkGameObject;
+        private GameObject TerrainChunkGameObject;
 
         [Header("ScriptableObject Settings")]
-        [SerializeField] private TerrainSettingsSO terrainSaveSettings;
+        [SerializeField] private TerrainSettingsSO TerrainSaveSettings;
 
         #endregion
 
         #region -- Tracking Fields
 
-        private Renderer meshRenderer;
-        private MeshFilter meshFilter;
-        private double startTime;
-        private int startFrame;
+        private MeshRenderer MeshRenderer;
+        private MeshFilter MeshFilter;
+        private TerrainJobQueueEntry JobQueueEntry;
 
         #endregion
 
         #region -- MonoBehavior Lifecycle
 
         private void OnEnable() {
-            if (debugMessaging) Debug.Log("Started SettingsEditor Script");
+            if (DebugMessaging) Debug.Log("Started SettingsEditor Script");
 
             SetupGameObjects();
         }
 
+        private void OnDestroy() {
+            OnDisable();
+        }
+
+        private void OnValidate() {
+            if (JobQueue) {
+                JobQueue.DebugMessaging = DebugMessaging;
+            }
+        }
+
         private void OnDisable() {
-            if (debugMessaging) Debug.Log("Stopping SettingsEditor Script");
+            if (DebugMessaging) Debug.Log("Stopping SettingsEditor Script");
 
-            DestroyImmediate(terrainChunkGameObject);
+            DestroyImmediate(TerrainChunkGameObject);
 
-            meshFilter = null;
-            meshRenderer = null;
+            MeshFilter = null;
+            MeshRenderer = null;
         }
 
         private void SetupGameObjects() {
-            if (debugMessaging) Debug.Log("Generating Settings Terrain Objects");
+            if (null == TerrainChunkGameObject) {
+                if (DebugMessaging) Debug.Log("Generating Settings Terrain Objects");
 
-            terrainChunkGameObject = TerrainDecorator.SetupGameObjects(transform, terrainMaterial);
-            terrainChunkGameObject.name = "Settings nfgTerrain";
+                TerrainChunkGameObject = TerrainDecorator.SetupGameObjects(transform, TerrainMaterial);
+                TerrainChunkGameObject.name = "Settings nfgTerrain";
+            }
 
-            meshFilter = terrainChunkGameObject.GetComponent<MeshFilter>();
-            meshRenderer = terrainChunkGameObject.GetComponent<MeshRenderer>();
+            MeshFilter = TerrainChunkGameObject.GetComponent<MeshFilter>();
+            MeshRenderer = TerrainChunkGameObject.GetComponent<MeshRenderer>();
         }
 
         #endregion
 
-
         #region -- Editor UI Methods
 
         public void GenerateTestChunk() {
-            startTime = Time.fixedUnscaledTimeAsDouble;
-            startFrame = Time.frameCount;
-
             TerrainChunkJobRegister jobRegister = new TerrainChunkJobRegister() {
                 TerrainChunkJobConfig = new TerrainChunkJobConfig() {
-                    TerrainSettings = terrainSaveSettings,
-                    ParallelLoopBatchCount = parallelLoopBatchCount,
+                    TerrainSettings = TerrainSaveSettings,
+                    ParallelLoopBatchCount = ParallelLoopBatchCount,
                 },
                 OnTerrainData = ChunkBuilt
             };
 
-            jobQueue.RequestChunks(jobRegister);
+            JobQueueEntry = JobQueue.RequestChunk(jobRegister);
+        }
+
+        public void ForceComplete() {
+            JobQueueEntry.FinalizeJob();
         }
 
         private void ChunkBuilt(TerrainData terrainData) {
-            drawEditorTextures(terrainData.mapData);
-            drawEditorMesh(terrainData.meshData);
+            // Quick failsafe for async bailout if the GO is deleted/disabled
+            if (!MeshRenderer) {
+                return;
+            }
 
-            int nowFrame = Time.frameCount;
-            double now = Time.fixedUnscaledTimeAsDouble;
-            double elapsed = now - startTime;
-            double elapsedFrames = nowFrame - startFrame;
-
-            if (debugMessaging) Debug.Log(
-                "\t<b>Start at:</b> " + startTime.ToString("F6")
-                + "\t<b>Now:</b> " + now.ToString("F6")
-                + "\n\t\tDONE in <color=yellow>" + (elapsed * 1000).ToString("F2") + "ms</color>  "
-                + "\tDONE in <color=red>" + elapsedFrames + " frames</color>"
-            );
-        }
-
-        private void drawEditorTextures(MapData mapData) {
-            int chunkSize = terrainSaveSettings.NoiseSettings.Width;
-
-            Texture2D texture = TextureHelper.FromColorMap(chunkSize, chunkSize, mapData.colorMap);
-
-            // Set Texture on flatMap view
-            meshRenderer.sharedMaterial.mainTexture = texture;
-        }
-
-        private void drawEditorMesh(TerrainMeshData meshData) {
-            Mesh terrainMesh = MeshHelper.CreateMesh(meshData);
-
-            // Apply Mesh!
-            meshFilter.sharedMesh = terrainMesh;
+            TerrainDecorator.ApplyTerrainData(MeshRenderer, MeshFilter, terrainData);
         }
 
         #endregion

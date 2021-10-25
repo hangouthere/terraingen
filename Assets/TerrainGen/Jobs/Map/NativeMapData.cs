@@ -6,7 +6,6 @@ using UnityEngine;
 namespace nfg.Unity.TerrainGen {
 
     public struct NativeMapData : IDisposable {
-        public NativeArray<Vector2> n_vecOctaveOffsets;
         public NativeArray<Vector2> n_vecColors;
         public NativeArray<float> n_heightMap;
         public NativeArray<Color> n_colorMap;
@@ -16,7 +15,6 @@ namespace nfg.Unity.TerrainGen {
         public bool IsCreated { get => n_vecColors.IsCreated; }
 
         public NativeMapData(SettingsCoherentNoise settingsNoise, RegionEntry[] regions, AnimationCurve regionBlendCurve) : this() {
-            n_vecOctaveOffsets = new NativeArray<Vector2>(settingsNoise.NumOctaves, Allocator.Persistent);
             n_vecColors = new NativeArray<Vector2>(settingsNoise.Width * settingsNoise.Width, Allocator.Persistent);
             n_heightMap = new NativeArray<float>(settingsNoise.Width * settingsNoise.Width, Allocator.Persistent);
             n_colorMap = new NativeArray<Color>(settingsNoise.Width * settingsNoise.Width, Allocator.Persistent);
@@ -37,7 +35,6 @@ namespace nfg.Unity.TerrainGen {
         public void Dispose() {
             if (!IsCreated) return;
 
-            n_vecOctaveOffsets.Dispose();
             n_vecColors.Dispose();
             n_heightMap.Dispose();
             n_colorMap.Dispose();

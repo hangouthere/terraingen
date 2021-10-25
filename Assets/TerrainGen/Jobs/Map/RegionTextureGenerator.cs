@@ -8,16 +8,28 @@ namespace nfg.Unity.TerrainGen {
         public static Color GenerateColorForHeight(
             NativeArray<RegionEntryData> n_regions,
             NativeCurve regionBlendCurve,
-            float heightVal
+            float heightVal,
+            float worldPerlinValue,
+            float scale
         ) {
+            float modifiedHeight;
+
             // Find the correct Region for our current heightVal
             for (int regionIdx = 0; regionIdx < n_regions.Length; regionIdx++) {
-                if (heightVal < n_regions[regionIdx].height) {
-                    return GenerateRegionColor(n_regions, regionIdx, heightVal, regionBlendCurve);
+                // We want to use some noise to modify the height for color mapping, that way we can have blended textures
+                modifiedHeight = heightVal + (worldPerlinValue / (n_regions[regionIdx].BlendModifier * scale));
+
+                if (n_regions[regionIdx].height >= modifiedHeight) {
+                    return GenerateRegionColor(
+                        n_regions,
+                        regionIdx,
+                        modifiedHeight,
+                        regionBlendCurve
+                    );
                 }
             }
 
-            return new Color();
+            return new Color(255, 0, 255, 100);
         }
 
         private static Color GenerateRegionColor(
@@ -26,24 +38,22 @@ namespace nfg.Unity.TerrainGen {
             float heightVal,
             NativeCurve regionBlendCurve
         ) {
-            RegionEntryData region = n_regions[regionIdx];
+            RegionEntryData currRegion = n_regions[regionIdx];
 
             // No Color Lerping requested, just return the Region color!
             if (false == regionBlendCurve.IsCreated) {
-                return region.color;
+                return currRegion.color;
             }
 
             // Get Last/Next Region Info
-            RegionEntryData nextRegion = (regionIdx + 1 < n_regions.Length) ? n_regions[regionIdx + 1] : region;
-            RegionEntryData prevRegion = (regionIdx != 0) ? n_regions[regionIdx - 1] : new RegionEntryData {
-                height = 0,
-                color = n_regions[0].color
-            };
+            RegionEntryData nextRegion = (regionIdx + 1 < n_regions.Length) ? n_regions[regionIdx + 1] : currRegion;
+            RegionEntryData prevRegion = (regionIdx != 0) ? n_regions[regionIdx - 1] : currRegion;
 
-            float regionLength = region.height - prevRegion.height;
+            float regionLength = currRegion.height - prevRegion.height;
             float regionPercent = (heightVal - prevRegion.height) / regionLength;
-            float curveVal = regionBlendCurve.Evaluate(regionPercent - 0.0001f);
-            return Color.Lerp(prevRegion.color, region.color, curveVal);
+
+            float curveVal = regionBlendCurve.Evaluate(regionPercent);
+            return Color.Lerp(prevRegion.color, currRegion.color, curveVal);
         }
     }
 

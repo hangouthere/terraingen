@@ -15,6 +15,8 @@ namespace nfg.Unity.TerrainGen {
     public struct RegionEntryData {
         public float height;
         public Color color;
+        [Range(0.001f, 20f)]
+        public float BlendModifier;
     }
 
     // Nested Struct to keep managed string out of necessary data for jobs

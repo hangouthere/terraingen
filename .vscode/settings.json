@@ -1,5 +1,6 @@
 {
   "files.exclude": {
+    "**/_thirdParty": true,
     "**/.DS_Store": true,
     "**/.git": true,
     "**/.gitignore": true,

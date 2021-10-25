@@ -12,3 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f80a9498ac897a4c88725d63c045f5d, type: 3}
   m_Name: TerrainJobQueueUpdateChannel
   m_EditorClassIdentifier: 
+  DebugMessaging: 0
