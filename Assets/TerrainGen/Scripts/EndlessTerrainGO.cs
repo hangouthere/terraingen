@@ -64,14 +64,14 @@ namespace nfg.Unity.TerrainGen {
         }
 
         public void DestroyAllChunks() {
-            if (_transformCache) {
-                foreach (Transform child in _transformCache) {
-                    GameObject.Destroy(child.gameObject);
-                }
+            for (int assocIdx = chunkAssocList.Count - 1; assocIdx > 0; assocIdx--) {
+                DestroyChunk(chunkAssocList[assocIdx]);
             }
 
             chunkAssocList.Clear();
             chunkAssocCoordMap.Clear();
+
+            lastViewerUpdatePos = new Vector3(int.MaxValue, 0, int.MaxValue);
         }
 
 #if UNITY_EDITOR
@@ -155,10 +155,7 @@ namespace nfg.Unity.TerrainGen {
                 int chunkDistance = (int)(chunkAssoc.chunk.Coordinate - viewerCoord).magnitude;
 
                 if (chunkDistance > destroyChunkSize) {
-                    jobQueue.TryCancel(chunkAssoc.queueEntry);
-                    chunkAssoc.chunk.DestroyChunk();
-                    chunkAssocList.Remove(chunkAssoc);
-                    chunkAssocCoordMap.Remove(chunkAssoc.chunk.Coordinate);
+                    DestroyChunk(chunkAssoc);
                 }
             }
         }
@@ -188,6 +185,13 @@ namespace nfg.Unity.TerrainGen {
             chunkAssocList.Add(chunkAssoc);
 
             return chunkAssoc;
+        }
+
+        private void DestroyChunk(TerrainChunkEntryAssociation chunkAssoc) {
+            jobQueue.TryCancel(chunkAssoc.queueEntry);
+            chunkAssoc.chunk.DestroyChunk();
+            chunkAssocList.Remove(chunkAssoc);
+            chunkAssocCoordMap.Remove(chunkAssoc.chunk.Coordinate);
         }
 
     }

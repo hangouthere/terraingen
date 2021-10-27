@@ -14,7 +14,7 @@ namespace nfg.Unity.TerrainGen {
         [ReadOnly]
         public NativeArray<Vector3> n_vecMesh;
         [ReadOnly]
-        public NativeArray<float> n_heightMap;
+        public NativeArray<Vector3> n_vecNoise;
         [ReadOnly]
         public NativeArray<RegionEntryData> n_regions;
         [ReadOnly]
@@ -26,7 +26,6 @@ namespace nfg.Unity.TerrainGen {
 
         public void Execute(int index) {
             float chunkCenterOffset = (settingsNoise.Width - 1) / -2f;
-            float heightVal = n_heightMap[index];
 
             Vector3 worldPoint = n_vecMesh[index]
                 + new Vector3(
@@ -41,11 +40,12 @@ namespace nfg.Unity.TerrainGen {
             Color color = RegionTextureGenerator.GenerateColorForHeight(
                 n_regions,
                 n_regionBlendCurve,
-                heightVal,
+                n_vecNoise[index].y,
                 worldPerlinValue,
                 settingsNoise.Scale
             );
-            // Color color = Color.Lerp(Color.black, Color.white, heightVal);
+
+            // Color color = Color.Lerp(Color.black, Color.white, n_vecNoise[index].y);
 
             n_colorMap[index] = color;
         }

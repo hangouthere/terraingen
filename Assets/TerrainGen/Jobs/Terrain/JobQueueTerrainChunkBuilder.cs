@@ -106,12 +106,12 @@ namespace nfg.Unity.TerrainGen {
         private void GenerateMapData() {
             n_terrain = new NativeTerrainData(terrainChunkJobConfig.TerrainSettings);
 
-            // Generate Color Vectors
-            JobHandle genColorVecsJobs = new JobCreateColorVectors() {
+            // Generate Noise Vectors
+            JobHandle genColorVecsJobs = new JobCreateNoiseVectors() {
                 // In
                 chunkSize = CHUNK_SIZE,
                 // Out
-                n_vertices = n_terrain.n_mapData.n_vecColors
+                n_vertices = n_terrain.n_mapData.n_vecNoise
             }.Schedule(jobHandle.handle); // only after the previous runningJob
 
             // Generate Mesh Vectors
@@ -120,7 +120,7 @@ namespace nfg.Unity.TerrainGen {
                 chunkSize = n_terrain.n_meshData.lodVerticesSize,
                 meshLODSkipVertSize = n_terrain.n_meshData.lodVerticeIncrement,
                 // Out
-                n_vertices = n_terrain.n_meshData.n_vecMesh,
+                n_vertices = n_terrain.n_meshData.n_vecMesh
             }.Schedule(jobHandle.handle); // only after the previous runningJob
 
             JobHandle setupJobs = JobHandle.CombineDependencies(
@@ -132,14 +132,13 @@ namespace nfg.Unity.TerrainGen {
             JobHandle noiseJob = new JobCreateCoherentNoise() {
                 // In
                 settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
-                n_vecColors = n_terrain.n_mapData.n_vecColors,
                 fastNoiseGen = fastNoiseGen,
                 minimumNoise = minimumNoise,
                 maximumNoise = maximumNoise,
                 // Out
-                n_heightMap = n_terrain.n_mapData.n_heightMap
+                n_vecNoise = n_terrain.n_mapData.n_vecNoise
             }.ScheduleParallel(
-                n_terrain.n_mapData.n_heightMap.Length,
+                n_terrain.n_mapData.n_vecNoise.Length,
                 (int)terrainChunkJobConfig.ParallelLoopBatchCount,
                 setupJobs
             ); // only after the previous setupJobs Combo
@@ -148,7 +147,7 @@ namespace nfg.Unity.TerrainGen {
             JobHandle meshJob = new JobCreateTerrainMesh() {
                 // In
                 settingsMesh = terrainChunkJobConfig.TerrainSettings.MeshSettings,
-                n_heightMap = n_terrain.n_mapData.n_heightMap,
+                n_vecNoise = n_terrain.n_mapData.n_vecNoise,
                 lodVerticeIncrement = n_terrain.n_meshData.lodVerticeIncrement,
                 lodVerticesSize = n_terrain.n_meshData.lodVerticesSize,
                 n_heightCurve = n_terrain.n_meshData.n_heightCurve,
@@ -163,7 +162,7 @@ namespace nfg.Unity.TerrainGen {
                 // In
                 settingsNoise = terrainChunkJobConfig.TerrainSettings.NoiseSettings,
                 n_vecMesh = n_terrain.n_meshData.n_vecMesh,
-                n_heightMap = n_terrain.n_mapData.n_heightMap,
+                n_vecNoise = n_terrain.n_mapData.n_vecNoise,
                 n_regionBlendCurve = n_terrain.n_mapData.n_regionBlendCurve,
                 n_regions = n_terrain.n_mapData.n_regions,
                 fastNoiseGen = fastNoiseGen,

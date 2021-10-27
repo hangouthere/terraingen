@@ -11,7 +11,7 @@ namespace nfg.Unity.TerrainGen {
         [ReadOnly]
         public SettingsMeshGenerator settingsMesh;
         [ReadOnly]
-        public NativeArray<float> n_heightMap;
+        public NativeArray<Vector3> n_vecNoise;
         [ReadOnly]
         public NativeCurve n_heightCurve;
         [ReadOnly]
@@ -34,7 +34,7 @@ namespace nfg.Unity.TerrainGen {
                 for (int x = 0; x < settingsMesh.ChunkSize; x += lodVerticeIncrement) {
 
                     // Get Height Val, apply the HeightCurve expression, and scale by HeightMultiplier
-                    float heightVal = n_heightMap[x + z * settingsMesh.ChunkSize];
+                    float heightVal = n_vecNoise[x + z * settingsMesh.ChunkSize].y;
                     float curvedVal = n_heightCurve.Evaluate(heightVal);
                     heightVal *= curvedVal * settingsMesh.heightMultiplier;
 

@@ -6,16 +6,16 @@ using UnityEngine;
 namespace nfg.Unity.TerrainGen {
 
     [BurstCompile]
-    public struct JobCreateColorVectors : IJob {
+    public struct JobCreateNoiseVectors : IJob {
         [ReadOnly]
         public int chunkSize;
 
-        public NativeArray<Vector2> n_vertices;
+        public NativeArray<Vector3> n_vertices;
 
         public void Execute() {
-            for (var y = 0; y < chunkSize; y++) {
+            for (var z = 0; z < chunkSize; z++) {
                 for (var x = 0; x < chunkSize; x++) {
-                    n_vertices[x + y * chunkSize] = new Vector2(x, y);
+                    n_vertices[x + z * chunkSize] = new Vector3(x, 0, z);
                 }
             }
         }
