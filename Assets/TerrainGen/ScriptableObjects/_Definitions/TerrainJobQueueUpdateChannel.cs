@@ -114,7 +114,7 @@ namespace nfg.Unity.TerrainGen {
 
         public void CheckCurrentEntryProgress() {
             // No Job, or Current job cannot be completed...
-            if (!HasCurrentEntry || !currentEntry.ChunkBuilder.CanComplete) {
+            if (!HasCurrentEntry || null == currentEntry.ChunkBuilder || !currentEntry.ChunkBuilder.CanComplete) {
                 return;
             }
 

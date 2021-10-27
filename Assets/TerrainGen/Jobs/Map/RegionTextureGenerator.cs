@@ -7,7 +7,7 @@ namespace nfg.Unity.TerrainGen {
     public static class RegionTextureGenerator {
         public static Color GenerateColorForHeight(
             NativeArray<RegionEntryData> n_regions,
-            NativeCurve regionBlendCurve,
+            NativeCurve n_regionBlendCurve,
             float heightVal,
             float worldPerlinValue,
             float scale
@@ -24,24 +24,25 @@ namespace nfg.Unity.TerrainGen {
                         n_regions,
                         regionIdx,
                         modifiedHeight,
-                        regionBlendCurve
+                        n_regionBlendCurve
                     );
                 }
             }
 
-            return new Color(255, 0, 255, 100);
+            // No Region match, return Magenta
+            return Color.magenta;
         }
 
         private static Color GenerateRegionColor(
             NativeArray<RegionEntryData> n_regions,
             int regionIdx,
             float heightVal,
-            NativeCurve regionBlendCurve
+            NativeCurve n_regionBlendCurve
         ) {
             RegionEntryData currRegion = n_regions[regionIdx];
 
             // No Color Lerping requested, just return the Region color!
-            if (false == regionBlendCurve.IsCreated) {
+            if (false == n_regionBlendCurve.IsCreated) {
                 return currRegion.color;
             }
 
@@ -52,7 +53,7 @@ namespace nfg.Unity.TerrainGen {
             float regionLength = currRegion.height - prevRegion.height;
             float regionPercent = (heightVal - prevRegion.height) / regionLength;
 
-            float curveVal = regionBlendCurve.Evaluate(regionPercent);
+            float curveVal = n_regionBlendCurve.Evaluate(regionPercent);
             return Color.Lerp(prevRegion.color, currRegion.color, curveVal);
         }
     }

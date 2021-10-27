@@ -144,6 +144,20 @@ namespace nfg.Unity.TerrainGen {
                 setupJobs
             ); // only after the previous setupJobs Combo
 
+            // Perform the TerrainMesh Job
+            JobHandle meshJob = new JobCreateTerrainMesh() {
+                // In
+                settingsMesh = terrainChunkJobConfig.TerrainSettings.MeshSettings,
+                n_heightMap = n_terrain.n_mapData.n_heightMap,
+                lodVerticeIncrement = n_terrain.n_meshData.lodVerticeIncrement,
+                lodVerticesSize = n_terrain.n_meshData.lodVerticesSize,
+                n_heightCurve = n_terrain.n_meshData.n_heightCurve,
+                // Out
+                n_triangles = n_terrain.n_meshData.n_triangles,
+                n_uvs = n_terrain.n_meshData.n_uvs,
+                n_vecMesh = n_terrain.n_meshData.n_vecMesh
+            }.Schedule(noiseJob); // only after the noiseJob
+
             // Perform the Color Job
             JobHandle colorJob = new JobCreateColorMap() {
                 // In
@@ -158,22 +172,8 @@ namespace nfg.Unity.TerrainGen {
             }.ScheduleParallel(
                 n_terrain.n_mapData.n_colorMap.Length,
                 (int)terrainChunkJobConfig.ParallelLoopBatchCount,
-                noiseJob
-            ); // only after the noiseJob
-
-            // Perform the TerrainMesh Job
-            JobHandle meshJob = new JobCreateTerrainMesh() {
-                // In
-                settingsMesh = terrainChunkJobConfig.TerrainSettings.MeshSettings,
-                n_heightMap = n_terrain.n_mapData.n_heightMap,
-                lodVerticeIncrement = n_terrain.n_meshData.lodVerticeIncrement,
-                lodVerticesSize = n_terrain.n_meshData.lodVerticesSize,
-                n_heightCurve = n_terrain.n_meshData.n_heightCurve,
-                // Out
-                n_triangles = n_terrain.n_meshData.n_triangles,
-                n_uvs = n_terrain.n_meshData.n_uvs,
-                n_vecMesh = n_terrain.n_meshData.n_vecMesh
-            }.Schedule(colorJob); // only after the normalizeHeightMapJob
+                meshJob
+            ); // only after the meshJob
 
             // Kick off Scheduler
             JobHandle.ScheduleBatchedJobs();
@@ -181,7 +181,7 @@ namespace nfg.Unity.TerrainGen {
             // Keep reference of the jobQueue to tack other jobs onto
             // (since we can't cancel jobs, and don't want concurrent
             // jobs accessing the same NativeContainers)
-            jobHandle = meshJob;
+            jobHandle = colorJob;
         }
 
         public void Complete() {

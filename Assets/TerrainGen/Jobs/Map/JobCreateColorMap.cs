@@ -25,9 +25,15 @@ namespace nfg.Unity.TerrainGen {
         public NativeArray<Color> n_colorMap;
 
         public void Execute(int index) {
-            Vector3 worldPoint = n_vecMesh[index]
-                + new Vector3(settingsNoise.PositionOffset.x, 0, settingsNoise.PositionOffset.y);
+            float chunkCenterOffset = (settingsNoise.Width - 1) / -2f;
             float heightVal = n_heightMap[index];
+
+            Vector3 worldPoint = n_vecMesh[index]
+                + new Vector3(
+                    chunkCenterOffset + settingsNoise.PositionOffset.x,
+                    0,
+                    chunkCenterOffset - settingsNoise.PositionOffset.y
+                );
 
             // Find fun noise offset so we get interesting blends
             float worldPerlinValue = fastNoiseGen.GetNoise(worldPoint.x, worldPoint.y, worldPoint.z);
