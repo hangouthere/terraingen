@@ -91,16 +91,8 @@ namespace nfg.Unity.TerrainGen {
             fastNoiseGen.SetFractalLacunarity(noiseSettings.Lacunarity);
             fastNoiseGen.SetFractalGain(noiseSettings.Persistence);
 
-            maximumNoise = 1f;
-            float amplitude = 1;
-
-            for (int octave = 0; octave < noiseSettings.NumOctaves; octave++) {
-                maximumNoise += amplitude;
-                amplitude *= noiseSettings.Persistence;
-            }
-
-            minimumNoise = -maximumNoise / noiseSettings.FloorModifier;
-            maximumNoise /= noiseSettings.CeilingModifier;
+            minimumNoise = -noiseSettings.FloorModifier;
+            maximumNoise = noiseSettings.CeilingModifier;
         }
 
         private void GenerateMapData() {
