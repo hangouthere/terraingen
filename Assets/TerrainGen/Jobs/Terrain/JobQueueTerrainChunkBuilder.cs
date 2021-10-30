@@ -147,7 +147,11 @@ namespace nfg.Unity.TerrainGen {
                 n_triangles = n_terrain.n_meshData.n_triangles,
                 n_uvs = n_terrain.n_meshData.n_uvs,
                 n_vecMesh = n_terrain.n_meshData.n_vecMesh
-            }.Schedule(noiseJob); // only after the noiseJob
+            }.ScheduleParallel(
+                n_terrain.n_meshData.n_vecMesh.Length,
+                (int)terrainChunkJobConfig.ParallelLoopBatchCount,
+                noiseJob
+            ); // only after the noiseJob
 
             // Perform the Color Job
             JobHandle colorJob = new JobCreateColorMap() {
